@@ -1,5 +1,5 @@
-/*  DOM QUERY ver 1.0*/
-(function () {
+dq = function () {
+    
     function _$(query) {
         this.elements = [];
         var i = 0;
@@ -263,15 +263,18 @@
         return textValue;
     }
 
-    window.$ = function () {
-        return new _$(arguments[0]);
-    }
-} ());
+   return new _$(query);
+} 
 
 /*
     Request thru the server
 */
-$.Server = (function () {
+dq.Server = (function () {
+
+    function createXhr() {
+
+    }
+
     return {
         response : null,
         request: function (moduleName, variables, isFormData) {
@@ -295,7 +298,7 @@ $.Server = (function () {
     }
 })();
 
-$.Stack = function () {
+dq.Stack = function () {
     var stack = new Array();
 
     this.exist = function (key) {
@@ -373,6 +376,4 @@ $.Stack = function () {
     function printStack() {
         console.log(stack);
     }
-
-
 }
