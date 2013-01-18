@@ -1,14 +1,12 @@
-dq = function () {
-    
+/*  DOM QUERY ver 1.0*/
+(function () {
     function _$(query) {
         this.elements = [];
         var i = 0;
         if (typeof query === 'string') {
             var results = document.querySelectorAll(query);
             if (results) {
-                for (; i < results.length; i++) {
-                    this.elements.push(results[i]);
-                };
+                this.elements = results;
             }
         }
         else if (query.nodeType === 1 || query.nodeType === 9) {
@@ -19,10 +17,6 @@ dq = function () {
                 this.elements.push(query[i]);
             }
         }
-        else {
-            this.elements.push(document);
-        }
-
         this.selector = query;
         this.context = document;
         this.length = this.elements.length;
@@ -35,12 +29,51 @@ dq = function () {
             };
             return this;
         },
-        getElements: function (id) {
-            var elements = new Array();
-            this.each(function (el) {
-                elements.push(el);
+        items: function (index) {
+            var elements = [];
+            this.each(function (el, i) {
+                if (arguments.length > 0) {
+                    if (typeof arguments[0] === "string") {
+                        if (el.id === index) {
+                            elements = el;
+                        }
+                    } else {
+                        if (i == index) {
+                            elements = el;
+                        }
+                    }
+                } else {
+                    elements.push(el);
+                }
             })
             return elements;
+        },
+        children: function () {
+            var childItems = [];
+            var args = arguments;
+            this.each(function (el) {
+                var total = el.childNodes.length;
+                if (total > 0) {
+                    for (var i = 0; i < total; i++) {
+                        if (el.childNodes[i].nodeType == 1) {
+                            if (args.length == 0) {
+                                childItems.push(el.childNodes[i]);
+                            }
+                            else if (args.length == 1) {
+                                if (el.childNodes[i].hasAttribute(arguments[0])) {
+                                    childItems.push(el.childNodes[i]);
+                                }
+                            } else if (args.length > 1) {
+                                var childAttrVal = el.childNodes[i].getAttribute(args[0]);
+                                if (childAttrVal == args[1]) {
+                                    childItems.push(el.childNodes[i]);
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+            return new _$(childItems);
         },
         find: function (query) {
             var results = [];
@@ -87,6 +120,13 @@ dq = function () {
             });
             return result;
         },
+        parent: function () {
+            var parentNode;
+            this.each(function (el) {
+                parentNode = el.parentNode;
+            })
+            return new _$(parentNode);
+        },
         data: function (dataKey, dataVal) {
             var object;
             var result = [];
@@ -109,16 +149,16 @@ dq = function () {
                 el[propertyName] = value;
             })
         },
-        getAttr: function (prop) {
+        getAttr: function (prop, index) {
             var property;
             var attributes = new Array();
             this.each(function (el) {
                 attributes.push(el.getAttribute(prop) || false);
             });
-            if (attributes.length == 1) {
-                return attributes[0];
+            if (index) {
+                return attributes[index];
             }
-            return attributes
+            return attributes;
         },
         setAttr: function (prop, value) {
             this.each(function (el) {
@@ -131,9 +171,6 @@ dq = function () {
                 el.removeAttribute(prop);
             })
         },
-        count: function () {
-            return this.elements.length;
-        },
         addClass: function (className) {
             this.each(function (el) {
                 if (el.className)
@@ -145,7 +182,7 @@ dq = function () {
         },
         hasClass: function (className) {
             var hasClass = false;
-            var classes = this.elements[0].className.split(className);
+            var classes = this.elements[0].className.split(" ");
             for (var i = 0; i < classes.length; i++) {
                 if (classes[i] == className) {
                     hasClass = true;
@@ -154,10 +191,16 @@ dq = function () {
             return hasClass;
         },
         setStyle: function (prop, value) {
-            this.each(function (el) {
+            return this.each(function (el) {
                 el.style[prop] = value;
             });
-            return this;
+        },
+        getStyle: function(prop) {
+            var styles = [];
+            this.each(function (el) {
+                styles.push(el.style[prop]);
+            });
+            return styles;
         },
         removeClass: function (className) {
             this.each(function (el) {
@@ -177,13 +220,6 @@ dq = function () {
                 el.removeEventListener(type, fn);
             })
             return this;
-        },
-        getParent: function () {
-            var parentNode;
-            this.each(function (el) {
-                parentNode = el.parentNode;
-            })
-            return new _$(parentNode);
         },
         iterateAttr: function (prop, val) {
             var newTarget;
@@ -209,13 +245,25 @@ dq = function () {
             });
             return newTarget;
         },
-        create: function (tag) {
+        create: function (tag, attr) {
 
         },
-        append: function (el, as) {
-
+        append: function (node, nodeRelative) {
+            this.each(function (el) {
+                node.each(function (nodeEl) {
+                    if (!nodeRelative) {
+                        el.appendChild(nodeEl);
+                    } else if (nodeRelative == 'parent') {
+                        nodeEl.appendChild(el);
+                    } else {
+                        el.appendChild(nodeEl);
+                    }
+                })
+            })
         }
     }
+
+
     _$.prototype.show = function () {
         this.each(function (el) {
             el.style.display = "block"
@@ -263,117 +311,7 @@ dq = function () {
         return textValue;
     }
 
-   return new _$(query);
-} 
-
-/*
-    Request thru the server
-*/
-dq.Server = (function () {
-
-    function createXhr() {
-
+    window.$ = function () {
+        return new _$(arguments[0]);
     }
-
-    return {
-        response : null,
-        request: function (moduleName, variables, isFormData) {
-            var mod = new ModuleLoader(moduleName, handleResponse, true, true);
-            if (variables) {
-                if (isFormData) {
-                    mod.addFormVariables(variables);
-                }
-                else {
-                    for (var key in variables) {
-                        mod.addVariable(key, variables[key]);
-                    }
-                }
-            }
-            //mod.send();
-            function handleResponse(obj) {
-                if($.Server.response) 
-                    $.Server.response(obj);
-            }
-        }
-    }
-})();
-
-dq.Stack = function () {
-    var stack = new Array();
-
-    this.exist = function (key) {
-        return isStackExist(key);
-    }
-
-
-    this.addStack = function (key, obj) {
-        return addStack(key, obj);
-    }
-
-    this.removeStack = function (key) {
-        return removeStack(key);
-    }
-
-    this.printStack = function () {
-        printStack();
-    }
-
-    this.getStack = function (key) {
-        return getStack(key);
-    }
-
-    this.iterate = function (fn) {
-        var total = stack.length;
-        if (total > 0) {
-            for (var i = 0; i < total; i++) {
-                fn.call(this, stack[i].value, stack[i].key);
-            }
-        }
-    }
-
-    function isStackExist(key) {
-        for (var i = 0; i < stack.length; i++) {
-            if (stack[i].key == key) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    
-    function addStack(key, obj) {
-        if (!isStackExist(key)) {
-            var object = {
-                key: key,
-                value: obj
-            }
-            stack.push(object);
-            return true;
-        }
-        return false;
-    }
-
-    function getStack(key) {
-        for (var i = 0; i < stack.length; i++) {
-            if (stack[i].key == key) {
-                return stack[i].value;
-            }
-        }
-        return false;
-    }
-
-    function removeStack(key) {
-        for (var i = 0; i < stack.length; i++) {
-            if (stack[i].key == key) {
-                var indexOfStack = stack.indexOf(stack[i]);
-                stack.splice(indexOfStack, 1);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function printStack() {
-        console.log(stack);
-    }
-}
+} ());
