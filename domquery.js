@@ -1,9 +1,9 @@
 /*  DOM QUERY ver 1.0*/
+
 (function () {
     function _dq(query) {
         this.elements = [];
         var i = 0;
-
         if (typeof query === 'string') {
             var results = document.querySelectorAll(query);
             if (results) {
@@ -55,7 +55,6 @@
             return elements;
         },
         children: function () {
-            /*arguments(attribute,value)*/
             var childItems = [];
             var args = arguments;
             this.each(function (el) {
@@ -110,7 +109,7 @@
                 if (el.childNodes.length > 0) {
                     for (var i = 0; i < el.childNodes.length; i++) {
                         if (el.childNodes[i].nodeType == 1) {
-                            result.push(new _dq(el.childNodes[1]));
+                            result.push(new _dq(el.childNodes[i]));
                             break;
                         }
                     }
@@ -122,7 +121,10 @@
             var result = [];
             this.each(function (el) {
                 if (el.childNodes.length > 0) {
-                    result.push(new _dq(el.childNode[el.childNodes.length - 1]));
+                    var lastNodeNum = el.childNodes.length - 1;
+                    if(el.childNodes[lastNodeNum].nodeType == 1) {
+                        result.push(new _dq(el.childNode[lastNodeNum]));    
+                    }
                 }
             });
             return result;
@@ -181,6 +183,15 @@
             return this.each(function (el) {
                 el.setAttribute(prop) = value;
             });
+        },
+        hasAttr: function(prop) {
+            var result = false;
+            this.each(function(el) {
+                if(el.hasAttribute(prop)) {
+                    result = true;
+                }
+            });
+            return result;
         },
         removeAttr: function (prop) {
             return this.each(function (el) {
@@ -246,12 +257,18 @@
             this.each(function (el) {
                 var target = el;
                 while (typeof target !== 'undefined') {
+                    
                     if (typeof val !== "undefined") {
                         if (target.getAttribute(prop) == val) {
                             newTarget = new _dq(target);
                             break;
                         }
-                    } else {
+                        else if(prop == 'tagName' && target.tagName == val) {
+                            newTarget = new _dq(target);
+                            break;
+                        }
+                    } 
+                    else {
                         if (prop instanceof Array) {
                             var isFound = false;
                             for (var i = 0, l = prop.length; i < l; i++) {
@@ -278,6 +295,10 @@
             });
             return newTarget;
         },
+        create: function (tag, attr) {
+            var el = document.createElement(tag);
+            return dq(el);
+        },
         append: function (node, nodeRelative) {
             this.each(function (el) {
                 node.each(function (nodeEl) {
@@ -290,8 +311,14 @@
                     }
                 })
             })
+        },
+        inner: function(htmlElement) {
+            return this.each(function(nodeEl) {
+               nodeEl.innerHTML = htmlElement; 
+            });
         }
     }
+
     _dq.prototype.show = function () {
         return this.each(function (el) {
             el.style.display = "block"
@@ -320,7 +347,7 @@
         })
         return props;
     }
-    _dq.prototype.getInputText = function () {
+    _dq.prototype.text = function () {
         var textValue = "";
         this.each(function (el) {
             switch (el.type) {
@@ -329,6 +356,10 @@
                         textValue = el.value;
                     }
                     break;
+                case "checkbox":
+                    if (el.checked == true) {
+                        textValue = "checked";
+                    }
                 case "select":
                     textValue = el.value;
                     break;
@@ -339,6 +370,7 @@
         });
         return textValue;
     }
+
     window.dq = function () {
         return new _dq(arguments[0]);
     }
@@ -350,7 +382,6 @@ window.$ = dq;
     Request thru the server
 ***********************/
 dq.StringUtil = {
-
     splitAttributeEquation: function (text, delimeter) {
         delimeter = delimeter || "=";
         var keypos = text.indexOf(delimeter),
@@ -462,10 +493,11 @@ dq.Util = {
     }
 }
 dq.Server = (function () {
-
-    function request(moduleName, variables, form, isPost, immediate) {
+    
+    function request(moduleName, variables, form, isPost, immediate,postVariables) {
         var formObject;
         if (form) isPost = true;
+        
         var mod = new ModuleLoader(moduleName, handleResponse, isPost, immediate);
         if (form) {
             if (form instanceof Array) {
@@ -473,24 +505,44 @@ dq.Server = (function () {
                     formObject = document.getElementById(form[i]);
                     mod.addPostFormVariables(formObject);
                 }
-            }else if(typeof form === "object" ) {
+            }
+            else if(typeof form === "object" ) {
                 mod.addPostFormVariables(form);
-            } else  {
-                formObject = document.getElementById(form);
-                mod.addPostFormVariables(formObject);
+            } 
+            else  {
+                formObject = document.getElementById(form) || false;
+                if(formObject) {
+                    if(formObject.tagName != 'FORM') {
+                        var singleForm = dq(formObject).bubble('tagName','FORM');
+                        if(singleForm) {
+                            //go to singleform
+                            mod.addPostFormVariables(singleForm.items(0));
+                        }
+                    }
+                    else {
+                        mod.addPostFormVariables(formObject);
+                    }    
+                }
+            }
+        }
+
+        if(typeof postVariables === "object") {
+            for (var key in postVariables) {
+                mod.addPostVariable(key,postVariables[key]);
             }
         }
 
         if (typeof variables === "object") {
             for (var key in variables) {
-                mod.addGetVariable(key, variables[key]);
-            }
+                    mod.addGetVariable(key, variables[key]);    
+                }
         }
+        
         mod.send();
-
-        function handleResponse(obj) {
-            if (dq.Server.response)
-                dq.Server.response(obj);
+    }
+    function handleResponse(obj) {
+        if (dq.Server.response) {
+            dq.Server.response(obj);
         }
     }
     function createAjaxRequest(args) {
@@ -499,6 +551,7 @@ dq.Server = (function () {
             def = {
                 module: null,
                 variables: null,
+                postVariables: null,
                 form: null,
                 isPost: false,
                 immediate: true
@@ -511,10 +564,11 @@ dq.Server = (function () {
                     //make reference to object 
                     def.variables = args.variables;
                 }
-
-                def.isPost = (typeof args.isPost !== "undefined" && args.isPost === "true") ? true : false;
-                def.immediate = (typeof args.immediate === "undefined") ? def.immediate : (args.immediate === "true") ? true : false;
-                console.log(def.immediate);
+                if (typeof args.postVariables === "object") {
+                    def.postVariables = args.postVariables;
+                }
+                def.isPost = (typeof args.isPost !== "undefined") ? true : false;
+                def.immediate = (typeof args.immediate === "undefined") ? true : (args.immediate === "true") ? true : false;
                 if (args.form) {
                     def.form = args.form;
                 }
@@ -533,7 +587,7 @@ dq.Server = (function () {
                     }
                 }
             }
-            dq.Server.request(def.module, varObject, def.form, def.isPost, def.immediate);
+            dq.Server.request(def.module, varObject, def.form, def.isPost, def.immediate, def.postVariables);
             dq.Server.response = function (obj) {
                 if (callback) callback(obj)
             }
@@ -551,19 +605,21 @@ dq.Server = (function () {
 
     return {
         response: null,
-        request: function (moduleName, variables, form, isPost, immediate) {
-            request(moduleName, variables, form, isPost, immediate);
+        request: function (moduleName, variables, form, isPost, immediate,postVariables) {
+            request(moduleName, variables, form, isPost, immediate,postVariables);
         },
         createAjaxRequest: function (args) {
             if (args.module) {
                 //converting string to object
                 if (args.variables) args.variables = dq.StringUtil.urlSplit(args.variables);
+                if(args.postVariables) args.postVariables = dq.StringUtil.urlSplit(args.postVariables);
                 return new createAjaxRequest(args);
             }
             return false;
         }
     }
 })();
+
 dq.Stack = function () {
     var stack = new Array();
 
@@ -648,7 +704,6 @@ dq.Stack = function () {
         console.log(stack);
     }
 
-
 }
 dq.Document = (function () {
     
@@ -660,7 +715,9 @@ dq.Document = (function () {
 
     function eventHandler(e) {
         if (hasEventPriority) return false;
-        notify(e.target, e);
+        if (e.target.tagName.toUpperCase() != "HTML") {
+            notify(e.target, e);
+        }
         return true;
     }
         
@@ -681,12 +738,15 @@ dq.Document = (function () {
         },
         isSubscriberExist: function(observer) {
             if(observers.indexOf(observer) > -1){
-    		    return true;
+			    return true;
 		    }
 		    return false;    
         },
-        addAction: function (type, callback, key) {
-            var types = type.split(',');
+        addAction: function (types) {
+            
+            if(typeof types === "string") {
+                types = types.split(',');
+            }
             for (var i = 0; i < types.length; i++) {
                 if (eventActivated.indexOf(types[i]) < 0) {
                     dq(document).addEvent(types[i], eventHandler);
@@ -729,13 +789,106 @@ dq.Parser = {
         var object = dq.StringUtil.objectParsing(attr);
         return object;
     },
+    isUIValid: function(el,component) {
+        var element = dq(el).bubble(new Array(component));
+        if (typeof element === "undefined") return false;
+        //do not proceed if no ajax-bind
+        if (element.getAttr(component).length == 0) return false;
+        return element;
+    },
     applyBinding: function () {
 
     }
 }
 
 
+/*****************
+Animation
+*****************/
+dq.LoadingAnimationHandler = (function() {
+     var whiteCover = (function () {
+        var whiteDiv = document.createElement('div');
+        whiteDiv.style.position = 'absolute';
+        whiteDiv.style.zIndex = 1000;
+        whiteDiv.style.backgroundColor = 'rgba(255,255,255,0.3)';
+        return whiteDiv;
+    })();
+
+
+    function start(elPos) {
+        imageLoader = document.createElement('img');
+        imageLoader.src = "imgs/ajax-loader (1).gif";
+        imageLoader.style.position = "absolute";
+        imageLoader.style.left = "50%";
+        imageLoader.style.top = "40%";
+        
+        whiteCover.appendChild(imageLoader);
+        whiteCover.style.top = elPos.top + "px";
+        whiteCover.style.left = elPos.left + "px";
+        whiteCover.style.height = elPos.height + "px";
+        whiteCover.style.width = elPos.width + "px";
+        document.body.appendChild(whiteCover);
+    }
+
+    function stop() {
+        try {
+            document.body.removeChild(whiteCover) || false;     
+        }catch(e) {
+            
+        }
+       
+       return true;
+    }
+
+    return {
+        start: function(elPos) {
+            start(elPos);
+        },
+        stop: function() {
+            stop();
+        }
+    }    
+})();
+
+
 /**********************
+Workers Management
+***********************/
+dq.WorkerManagement = (function() {
+    var worker;
+    function startWorker() {
+        //is supported
+        if(typeof(Worker) !== "undefined") {
+            //is instantiated
+            if(typeof(worker) === "undefined") {
+                worker = new Worker("ajax_refresh.js");
+            }
+            worker.addEventListener("message",function() {
+                //notify
+            })
+        }
+    }
+
+    function notify() {
+        
+    }
+
+
+    return {
+        subscribe: function() {
+                
+        },
+        start : function() {
+                
+        },
+        stop : function() {
+            
+        }
+    }
+})
+
+
+/************************
 Element Selection
 *************************/
 var Marker = function() {
@@ -750,16 +903,15 @@ var Marker = function() {
     }
 
 	this.setElementDimension = function(el) {
-        if(el.getAttribute('data-marker')) {
+		if(el.getAttribute('data-marker')) {
 			return false;
 		}
 		
-        var top = el.offsetTop,
+		var top = el.offsetTop,
 			left = el.offsetLeft,
 			height = el.offsetHeight,
 			width = el.offsetWidth;
-		
-        var target = el;
+		var target = el;
 		
 		resetPosition();
 		
@@ -775,13 +927,12 @@ var Marker = function() {
         //store element information
         elInfo.top = top;
         elInfo.left = left;
-        
+
 		mark.style.top = top;
 		mark.style.left = left;
 		mark.style.height = height;
 		mark.style.width = width;
-		
-        return this;
+		return this;
 	}
 
 	function resetPosition() {
@@ -791,7 +942,7 @@ var Marker = function() {
 		mark.style.width = 0;	
 	}
 
-	this.show = function() {
+	this.show =function() {
 		mark.style.display = "block";
 		mark.addEventListener('dblclick',hide,false);
 	}
@@ -817,7 +968,7 @@ var Marker = function() {
 		return but;
 	}
 	function init() {
-		mark.style.cssText = "position:absolute; border: 1px dashed white; box-sizing: border-box;background:rgba(120,120,120,.5)";
+		mark.style.cssText = "position:absolute; border: 2px dashed red; box-sizing: border-box";
 		mark.style.display = "none";
 		mark.setAttribute('data-marker','true');
 		var but = markerNavigation();
@@ -854,18 +1005,13 @@ var ElementSelection = (function() {
 	}
 
     function attachedEvents() {
-        
         dq(document).addEvent('click',function(event) {
             var target = event.target;
-            
             //create marker
             markers.clearMarker();
 			var marker = markers.createMarker();
             marker.setElementDimension(target).show();
         });
-
-
-        
     }
 	
 
