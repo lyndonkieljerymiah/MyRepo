@@ -714,7 +714,9 @@ dq.Document = (function () {
     var observers = new Array();
 
     function eventHandler(e) {
+        
         if (hasEventPriority) return false;
+        
         if (e.target.tagName.toUpperCase() != "HTML") {
             notify(e.target, e);
         }

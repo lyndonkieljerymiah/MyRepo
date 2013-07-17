@@ -113,6 +113,7 @@ UI.Components = {
         return true;
     }
 }
+
 UI.AjaxBindLoader = (function () {
 
     var ajaxCounter = 0,
@@ -524,7 +525,6 @@ UI.AjaxBindLoader = (function () {
         load: function () {
             //do one time load only
             if (!isEventLoaded) {
-
                 var eventNames;
                 if (arguments.length > 0) {
                     eventNames = arguments[0];
