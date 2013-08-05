@@ -79,7 +79,9 @@ var UI = UI || {}
 
 UI.Components = {
     start: function () {
+
         var _registerEvents = Array("click", "change");
+        
         if (!dq.Document.isSubscriberExist(this)) {
             dq.Document.subscribe(this);
             if (arguments.length >= 1 && arguments[0] instanceof Array) {
