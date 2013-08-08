@@ -1,0 +1,54 @@
+
+<page>
+    <object>
+        <node>
+            
+			<nodeId>1</nodeId>
+            <nodeParentId>0</nodeParentId>
+            <nodeTag>div</nodeTag>
+            <nodeAttributes>[!CDATA[  ]]</nodeAttributes>
+            <nodeType>Form</nodeType>
+            
+			<tableMap>
+                <id>tbl_01</id>
+                <name>profile</name>
+                <key>field_id</key>
+            </tableMap>
+			
+        </node>
+        <node>
+            
+			<nodeId>2</nodeId>
+            <nodeParentId>1</nodeParentId>
+            <nodeTag>select</nodeTag>
+            <nodeAttributes>type=text</nodeAttributes>
+            <nodeType>Input</nodeType>
+            
+			<fieldMap>
+                <id>fld_01</id>
+                <name>profile</name>
+            </fieldMap>
+            
+			<lookupMap>
+                <id>tbl_01</id>
+                <fieldId>fld_02</fieldId>
+            </lookupMap>
+			
+        </node>
+        <node>
+            <nodeId>3</nodeId>
+            <nodeParentId>1</nodeParentId>
+            <nodeTag>input</nodeTag>
+            <nodeAttributes>type="button" value="phonebook"</nodeAttributes>
+            <nodeType>Button</nodeType>
+            
+			<actionMap>
+                <action>new_module</action>
+				<trigger>click</trigger>
+                <parameter>
+                    target=
+                </parameter>
+            </actionMap>
+        </node>
+    </object>
+</page>
