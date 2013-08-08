@@ -1,5 +1,5 @@
 {
-  "name": "UI Framework",
+  "name": "lyndon/ui",
   "version": "0.0.1",
   "author": "Arnold G. Mercado",
   "description": "",
@@ -12,7 +12,7 @@
     "node": ">=0.6"
   },  
   "require": {
-        "php": ">=5.3.0",
-        "lyndon/ui": "1.0.*.dev"
+        "php": ">=5.3.0"
+        
   }
 }
