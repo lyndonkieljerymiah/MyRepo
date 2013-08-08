@@ -1,7 +1,7 @@
 {
-  "name": "NodeSite",
+  "name": "UI Framework",
   "version": "0.0.1",
-  "author": "",
+  "author": "Arnold G. Mercado",
   "description": "",
   "contributors": [],
   "main": "./server.js",
@@ -11,6 +11,7 @@
   "engines": {
     "node": ">=0.6"
   },  
-  "devDependencies": {},
-  "optionalDependencies": {}
+  "require": {
+        "php": ">=5.3.0"
+  }
 }
