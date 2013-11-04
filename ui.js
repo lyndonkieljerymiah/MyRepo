@@ -1,5 +1,11 @@
 /***********************************************************************
-@name: UI Package
+@Name: UI Framework Ver 2.0
+@Author: Arnold G. Mercado
+@Component:
+    AjaxBindLoader
+    Tabs
+    Button
+    Input - on conceptual stage
 ************************************************************************/
 
 
@@ -36,27 +42,31 @@ function getElementFullOffset(el) {
 		ele = ele.offsetParent;
 		
 		
-        while(np != ele){
-			if(window.getComputedStyle(np,null)){
-				var borderLeft = window.getComputedStyle(np,null).getPropertyValue("border-left-width");
-				var regBorderLeft = borderLeft.match(patt1);
-				var borderTop = window.getComputedStyle(np,null).getPropertyValue("border-top-width");
-				var regBorderTop = borderLeft.match(patt1);
+            while(np != ele){
+                try {
+			        if(window.getComputedStyle(np,null)){
+				        var borderLeft = window.getComputedStyle(np,null).getPropertyValue("border-left-width");
+				        var regBorderLeft = borderLeft.match(patt1);
+				        var borderTop = window.getComputedStyle(np,null).getPropertyValue("border-top-width");
+				        var regBorderTop = borderLeft.match(patt1);
 				
-				left += new Number(regBorderLeft[0]);
-				top += new Number(regBorderTop[0]);
-			}
+				        left += new Number(regBorderLeft[0]);
+				        top += new Number(regBorderTop[0]);
+			        }
 			
-			if(np.scrollLeft > 0){
-				left -= np.scrollLeft;
+			        if(np.scrollLeft > 0){
+				        left -= np.scrollLeft;
 				
-			}
-			if(np.scrollTop > 0){
-				top -= np.scrollTop;
-			}
-			np = np.parentNode;
-		}
-
+			        }
+			        if(np.scrollTop > 0){
+				        top -= np.scrollTop;
+			        }
+			        np = np.parentNode;
+                } catch(e) {
+                    break;
+                }
+		    }
+        
 		if(window.getComputedStyle(np,null)){
 			var borderLeft = window.getComputedStyle(np,null).getPropertyValue("border-left-width");
 			var regBorderLeft = borderLeft.match(patt1);
@@ -75,13 +85,67 @@ function getElementFullOffset(el) {
    
 }
 
+function formPrinting() {
+    var targetPrintOut = dq('[print-target]');
+    console.log(targetPrintOut);
+    var targetContent = "";
+    if(targetPrintOut.length == 0) {
+        return false;
+    }
+    targetPrintOut.each(function (e) {
+        console.log(e.tagName);
+        if (e.style.display !== "none") {
+            targetContent = e.innerHTML;
+        }
+    });
+    
+   
+    if(targetContent != "") {
+        var cssSource = dq("[rel=stylesheet]");
+        var htmlRef = cssSource.items(0).getAttribute('href');
+        var printWindowPreview = window.open('', 'print_preview');
+        var printDocument = printWindowPreview.document;
+        printDocument.write("<html><head><link href=" + htmlRef + " rel='stylesheet' text/type='text/css'></head><body style='width:957px;color:black'></body></html>");
+        printDocument.body.innerHTML = targetContent;
+	    printWindowPreview.focus();
+	    printWindowPreview.print();
+    }
+}
+
+
 var UI = UI || {}
 
-UI.Components = {
-    start: function () {
+UI.FrameLayout = {
+    noFrame: function () {
+        var layoutFrame = dq("#mainLayoutFrame");
+        if (layoutFrame.length > 0) {
+            layoutFrame.removeClass("frame");
+        }
+    },
+    disableHome: function () {
+        var btnHome = dq("#homePathButton");
+        btnHome.removeFromParent();
+    },
+    disablePrinter: function () {
+        var btnPrinter = dq("#printerPathButton");
+        btnPrinter.removeFromParent();
+    },
+    disableTitle: function () {
+        var title = dq("#mainLayoutLabel");
+        title.removeFromParent();
+    },
+    setDefault: function () {
+        this.disableHome();
+        this.disablePrinter();
+        this.disableTitle();
+        this.noFrame();
+    }
+}
 
+UI.Components = {
+
+    start: function () {
         var _registerEvents = Array("click", "change");
-        
         if (!dq.Document.isSubscriberExist(this)) {
             dq.Document.subscribe(this);
             if (arguments.length >= 1 && arguments[0] instanceof Array) {
@@ -90,9 +154,7 @@ UI.Components = {
             dq.Document.addAction(_registerEvents);
         }
     },
-    register: function() {
-        
-    },
+
     update: function (target, e) {
         var target = dq(target).bubble(new Array("data-ui-bind"));
         if (target) {
@@ -116,6 +178,41 @@ UI.Components = {
     }
 }
 
+UI.Page = {
+
+    clearPage: function (targetElement) {
+        if (targetElement) {
+            var dataGroup = targetElement.getAttribute("data-group") || false;
+            if (dataGroup) {
+                var tabGroup = dq(document).find("[data-group]")[0];
+                if (tabGroup.length > 0) {
+                    tabGroup.each(function (el) {
+                        var elDataGroup = el.getAttribute("data-group");
+                        if (elDataGroup == dataGroup) {
+                            el.style.display = "none";
+                        }
+                    });
+                }
+                targetElement.style.display = null;
+            }
+            else {
+                parent = targetElement.parentNode;
+                var nodes = parent.childNodes;
+                var length = nodes.length;
+                for (var i = 0; i < length; i++) {
+                    if (nodes[i].tagName) {
+                        var pagem = nodes[i].getAttribute('pagem');
+                        if (pagem == 1) {
+                            nodes[i].style.display = 'none';
+                        }
+                    }
+                }
+            }
+            targetElement.style.display = null;
+        }
+    }
+}
+
 UI.AjaxBindLoader = (function () {
 
     var ajaxCounter = 0,
@@ -126,6 +223,7 @@ UI.AjaxBindLoader = (function () {
         isEventLoaded = false,
         hasMultipleRequest = false,
         customActionStack = null,
+        hookStack = null,
         waitingStack = null,
         globalElement = null,
         _immediate = null,
@@ -136,6 +234,7 @@ UI.AjaxBindLoader = (function () {
         customActionStack = new dq.Stack();
         customVariableStack = new dq.Stack();
         ajaxRequestStack = new dq.Stack();
+        hookStack = new dq.Stack();
         waitingStack = new Array();
         autoload();
     }
@@ -192,19 +291,19 @@ UI.AjaxBindLoader = (function () {
         if (ajaxRequest) {
             ajaxRequest.setCounter(ajaxCounter);
             startAjaxLoading(element);
-            ajaxRequest.execute(ajaxResponseHandler);
-            function ajaxResponseHandler(obj) {
+            ajaxRequest.execute(function (obj) {
                 stopAjaxLoading();
                 if (handleResponse(obj, element)) {
                     ajaxCounter++;
                     triggerEvent(element, "onLoaded");
                 }
-            }
+            });
         }
     }
 
 
     function preProcessing(element, e) {
+
         var ajaxBind = dq.Parser.ajaxParsing(element);
         var cancel = triggerEvent(element, "onRequest");
         if (!cancel) {
@@ -217,11 +316,11 @@ UI.AjaxBindLoader = (function () {
 
     /*checking and preparing for all the variables the need to send to the server*/
     function preExecute(element) {
+
         waitingStack = new Array(); //clear stack
         var bind = dq.Parser.ajaxParsing(element);
         var getVar = element.getAttr('get_var')[0];
         var postVar = element.getAttr('post_var')[0];
-
         if (getVar) {
             bind.variables = (bind.variables) ? bind.variables + "&" + getVar : getVar;
         }
@@ -249,9 +348,11 @@ UI.AjaxBindLoader = (function () {
     function execute(element, bind) {
 
         var ajaxBind = bind || false;
+
         if (ajaxBind.map) {
             ajaxBind = customVariableStack.getStack(ajaxBind.map);
         }
+
         if (!ajaxBind) return false;
         hasMultipleRequest = false;
 
@@ -335,41 +436,14 @@ UI.AjaxBindLoader = (function () {
     }
 
     function insertContentToTarget(strTarget, content, args) {
-
-        var targetElement = document.getElementById(strTarget) || null;
-        if (targetElement) {
-            if (args.isAppend) {
-                targetElement.appendChild(content);
-            }
-            else {
-                var parent = null;
-                var el = targetElement;
-
-                if (el) {
-                    parent = el.parentNode;
-                    var nodes = parent.childNodes;
-                    var length = nodes.length;
-                    for (var i = 0; i < length; i++) {
-
-                        if (nodes[i].tagName) {
-                            var pagem = nodes[i].getAttribute('pagem');
-                            if (pagem == 1) {
-                                nodes[i].style.display = "none";
-                            }
-                        }
-                    }
-                }
-                if (targetElement.getAttribute('loop') && targetElement.getAttribute('loop') == 'outer') {
-                    var parentOfTargetEl = targetElement.parentNode;
-                    var newTargetEl = dq(content).first()[0].items(0);
-                    newTargetEl.innerHTML = content.innerHTML;
-                    parentOfTargetEl.replaceChild(newTargetEl, targetElement);
-                } else {
-                    targetElement.innerHTML = content.innerHTML;
-                }
-
-                targetElement.style.display = null;
-            }
+        //hook on inserting into target
+        if (hookStack.exist("onInsertingContentToTarget")) {
+            var hookFunction = hookStack.getStack("onInsertingContentToTarget");
+            var targetElement = hookFunction(strTarget, content, args) || false;
+        }
+        else {
+            var targetElement = document.getElementById(strTarget) || false;
+            if (targetElement) targetElement.innerHTML = content.innerHTML;
         }
         return targetElement;
     }
@@ -384,6 +458,7 @@ UI.AjaxBindLoader = (function () {
         //store body temporarily
         var targetArgs = element.getAttr("data-target")[0];
         var targetElement = null;
+        var hookFunction;
 
         if (!targetArgs) return false;
 
@@ -392,42 +467,11 @@ UI.AjaxBindLoader = (function () {
         temp = document.createElement(temp);
         temp.innerHTML = obj.getBody().trim().replace(";;", ";");
 
-        //check if something to url redirection
-        var url = $(temp).find("url");
-        if (url[0].length > 0) {
-            var dataUIBind = url[0].items(0).getAttribute("data-ui-bind");
-            if (dataUIBind != null) {
-                UI.Components.update(url[0].items(0), { type: 'click' });
-            }
+        //loading pre load
+        if (hookStack.exist("onFetching")) {
+            hookFunction = hookStack.getStack("onFetching");
+            hookFunction(temp, targetArgs);
         }
-
-        //avoid target delegation
-        if (!hasMultipleRequest) {
-            //first to check the multiple target
-            if (targetArgs.multipleTarget) {
-                //looking for data-target
-                var targetForDest = dq(temp).find('[data-target]')[0];
-                //target for destination found
-                if (targetForDest.length > 0) {
-                    //iterating until no one left
-                    targetForDest.each(function (el) {
-                        var objectTaget = dq(el);
-                        //break it down
-                        var targetForDestBinding = dq.Parser.customParsing(objectTaget, 'data-target');
-                        if (targetForDestBinding.destination) {
-                            var targetSource = document.getElementById(targetForDestBinding.destination) || false;
-                            //make sure that is exact destination
-                            if (targetSource) {
-                                targetSource.innerHTML = objectTaget.items(0).outerHTML.trim();
-                                objectTaget.items(0).parentNode.removeChild(objectTaget.items(0));
-                            }
-                        }
-                    });
-                }
-            }
-        }
-
-
 
 
         if (targetArgs.target) {
@@ -435,50 +479,17 @@ UI.AjaxBindLoader = (function () {
                 for (var i = 0; i < targetArgs.target.length; i++) {
                     insertContentToTarget(targetArgs.target[i], temp, targetArgs);
                 }
-            } else {
+            }
+            else {
                 targetElement = insertContentToTarget(targetArgs.target, temp, targetArgs);
             }
         }
-        else if (targetArgs.lightbox) {
-            targetElement = dq(document.createElement('div')).addClass('lightbox');
-            targetElement.items(0).id = 'ajax-lightbox';
-            targetElement.items(0).innerHTML = temp.innerHTML;
-            var targetElementChild = targetElement.children();
-            targetElementChild.each(function (el) {
-                el.style.top = '20%';
-                el.style.left = '50%';
-                el.style.marginLeft = '-200px';
-            });
-            dq(document).addEvent('click', buttonClose);
-            document.body.appendChild(targetElement.items(0));
-        }
 
-        //Auto Focus
-        if (element.hasAttr('data-var')) {
-            var dataVar = dq.Parser.customParsing(element, 'data-var');
-            if (typeof dataVar.autoFocus !== "undefined") {
-                var input = dq(document.getElementById(targetElement.id)).find("[autofocus]")[0];
-                input.items(0).focus();
-            }
-        }
 
-        //calling action
-        if (element.hasAttr("data-call-action")) {
-            var dataBind = dq.Parser.customParsing(element, "data-call-action");
-
-            var callAction = dataBind.callAction || false;
-            if (callAction) {
-                if (callAction instanceof Array) {
-                    for (var i = 0; i < callAction.length; i++) {
-                        var elToCall = dq("[buttonId='" + callAction[i] + "']");
-                        elToCall.each(function (el) {
-                            UI.AjaxBindLoader.setImmediate("false");
-                            UI.AjaxBindLoader.update(el, { type: 'click' });
-                        })
-                    }
-                }
-            }
-
+        //after loading filter
+        if (hookStack.exist("afterFetching")) {
+            hookFunction = hookStack.getStack("afterFetching");
+            hookFunction(element, targetArgs);
         }
 
         if (typeof targetArgs.loadJs !== 'undefined' && targetArgs.loadJs === "true") obj.loadJs();
@@ -542,53 +553,36 @@ UI.AjaxBindLoader = (function () {
                     dq.Document.addAction(eventNames);
                 }
 
+                init();
                 isEventLoaded = true;
 
-                init();
+
             }
         },
         autoload: function () {
             autoload();
         },
         update: function (element, e) {
-            element = dq.Parser.isUIValid(element, "data-ajax-bind");
-            if (!element) return false;
-
+            var hookFunction;
+            var dqElement = dq.Parser.isUIValid(element, "data-ajax-bind");
+            if (!dqElement) return false;
             //get the event 
-            var dataBind = dq.Parser.ajaxParsing(element);
+            var dataBind = dq.Parser.ajaxParsing(dqElement);
+
             //custom event
             var customEvent = dataBind.eventType || 'click';
-            if (customEvent instanceof Array) {
-                var noMatch = true;
-                for (var i = 0, l = customEvent.length; i < l; i++) {
-                    if (customEvent[i] == e.type) {
-                        noMatch = false;
-                        break;
-                    }
+            if (customEvent != e.type) return false;
+
+            //trigger clear 
+            if (hookStack.exist("onUpdating")) {
+                hookFunction = hookStack.getStack("onUpdating");
+                var isCancel = hookFunction(dqElement, dataBind, e) || false;
+                if (!isCancel) {
+                    preProcessing(dqElement, e);
                 }
-                if (noMatch) return false;
             }
             else {
-                if (customEvent != e.type) return false;
-            }
-
-            //check if there's a module
-            var hasModule = dataBind.module || false;
-            if (!hasModule) {
-                clearPage(element);
-            }
-
-            //check if data confirmation
-            if (element.hasAttr('data-confirmation')) {
-                var dataCnfObject = dq.Parser.customParsing(element, 'data-confirmation');
-                var message = dataCnfObject.message || "Uknown message";
-                UI.AlertDialog.confirm(message);
-                UI.AlertDialog.setCustomFunction(function (result) {
-                    if (result == true)
-                        preProcessing(element, e);
-                });
-            } else {
-                preProcessing(element, e);
+                preProcessing(dqElement, e);
             }
             return true;
         },
@@ -606,6 +600,9 @@ UI.AjaxBindLoader = (function () {
         },
         setImmediate: function (value) {
             _immediate = value;
+        },
+        preProcessing: function (element, e) {
+            preProcessing(element, e);
         },
         executeQueue: function (bind) {
             if (waitingStack.length > 0) {
@@ -633,6 +630,10 @@ UI.AjaxBindLoader = (function () {
         },
         removeAction: function (key) {
             customEventStack.removeStack(key);
+        },
+        hook: function (key, eventFn) {
+
+            hookStack.addStack(key, eventFn);
         }
     }
 })();
@@ -673,7 +674,6 @@ UI.Tabs = (function () {
         })
         initizialize = true;
     }
-
 
 
     function handleEvent(target, e) {
@@ -792,7 +792,7 @@ UI.Tabs = (function () {
                     dq(el).removeClass(selectionClass);
                 }
                 //clear panel as well
-                panels.clearPanel(dataBind.name);
+                //panels.clearPanel(dataBind.name);
             });
         }
     }
@@ -827,126 +827,6 @@ UI.Tabs = (function () {
         }
     }
 })()
-
-UI.TabsVer2 = (function () {
-
-    var isEventLoaded = false,
-        customEventStack = null,
-        that = this,
-        panels,
-        registerEvents = new Array("click"),
-        activeStyle = "selected";
-
-    
-     function init() {
-        customEventStack = new dq.Stack();
-        panels = UI.Panels.getInstance();
-        clearButton();
-        var buttonTabs = dq.Parser.objectIdentifier("tab");
-        buttonTabs.each(function (el) {
-            var dataBind = dq.Parser.uiParsing(dq(el));
-            if (dataBind.selectionClass) selectionClass = dataBind.selectionClass;
-            if (dataBind.selected) {
-                activateTab(dq(el), dataBind);
-            }
-        })
-        
-     }
-
-
-    function activateTab(target, dataBind) {
-        var beforeActive, onActive;
-        var key, groupName;
-
-        if (target.hasClass == activeStyle) {
-            return false;
-        }
-
-        //trigger the before active event
-        var cancel = triggerEvent(target, "beforeActive");
-        if (cancel) return false;
-
-        var groupName = dataBind.name || '';
-        activateButton(target, groupName);
-        panels.activatePanel(groupName, key,dataBind.autoClear);
-    }
-    
-    function activateButton(target, groupName) {
-        //diff handlers
-        clear(groupName);
-        target.addClass(activeStyle);
-    }
-
-    function clear(groupName) {
-        var buttonGroup = dq.Parser.objectIdentifier("tab");
-        if (buttonGroup) {
-            buttonGroup.each(function (el) {
-                var dataBind = dq.Parser.uiParsing(dq(el));
-                if (groupName) {
-                    if (dataBind.name && dataBind.name == groupName) {
-                        dq(el).removeClass(activeStyle);
-                    }
-                } else {
-                    dq(el).removeClass(activeStyle);
-                }
-            });
-        }
-    }
-
-    function preExecute(target, e) {
-        var dataBind = dq.Parser.uiParsing(target);
-        try {
-            if (!dataBind.component || dataBind.component != "tab") return false;
-            activeStyle = dataBind.activeStyle || 'selected';
-            var triggerType = dataBind.triggerType || 'click';
-            var validEvent = false;
-
-            //check if event is valid
-            for (var i = 0, l = registerEvents; i < l; i++) {
-                if (e.type == registerEvents[i]) {
-                    validEvent = true;
-                    break;
-                }
-            }
-
-            if (!validEvent) throw "Invalid Event in Tab";
-
-            if (e.type == triggerType) {
-                activateTab(target, dataBind);
-            }
-        }
-        catch (e) {
-            alert(e);
-        }
-        return true;
-    }
-
-
-    function triggerEvent() {
-
-    }
-
-    return {
-        load: function (init) {
-            if (typeof init === 'object') {
-                //check for register event
-                if (init.registerEvents && init.registerEvent instanceof Array) {
-                    registerEvents = init.registerEvent;
-                }
-            }
-            UI.Components.start(registerEvents);
-        },
-        bindAction: function (key) {
-
-        },
-        handleEvent: function (target, e) {
-            preExecute(target, e);
-        }
-    }
-
-
-
-})
 
 UI.Panels = (function () {
 
@@ -1072,115 +952,13 @@ UI.Navs = (function () {
 
     var customEventStack = null,
         buttonAjaxCounter = 0,
+        hookStack = null,
         that = this;
     var isEventLoaded = false;
 
-    var buttonSwitch = {
-        switching: function (button, toggle) {
-            var isToggle = false;
-            var dataBind = dq.Parser.uiParsing(button);
-            var singleSel = (dataBind.singleSelection) || false;
-
-            if (singleSel) {
-                //reset everything
-                var buttonSwitch = getButtonGroup(dataBind.name || "");
-                buttonSwitch.removeClass("switch");
-            }
-
-            if (typeof toggle === 'undefined') {
-                if (button.hasClass("switch")) {
-                    toggle = false;
-                }
-                else {
-                    toggle = true;
-                }
-            }
-
-            if (toggle) {
-                if (!button.hasClass("switch")) {
-                    button.addClass("switch");
-                    isToggle = true;
-                }
-            } else {
-                if (button.hasClass("switch")) {
-                    button.removeClass("switch");
-                    isToggle = true;
-                }
-            }
-
-            return isToggle;
-        },
-        toggleSwitch: function (groupName, keys, toggle) {
-            if (typeof keys === 'string') {
-                keys = keys.split(',');
-            }
-            if (keys instanceof Array) {
-                for (var i = 0; i < keys.length; i++) {
-                    var obj = dq("#" + keys[i]);
-                    if (obj) handleEvent(obj, { type: "click", toggle: toggle });
-                }
-            }
-        }
-    }
-
-    var dropDown = {
-        drop: function (target, hasOneClick) {
-            var stopHide;
-            var ddTarget = target;
-            if (ddTarget) {
-                var dropDown = dq('#' + ddTarget);
-                if (dropDown.items(0).style.display == 'none') {
-                    dropDown.setStyle("display", "block");
-                    dq(document).addEvent("click", dropDownEvent);
-                } else {
-                    stopHide = true;
-                }
-            }
-
-            function dropDownEvent(e) {
-                var ref = ddTarget || null;
-                var dd = dropDown;
-                if (ref) {
-                    var parent = dq(e.target).bubble("id", ref);
-                    if (parent == null) {
-                        if (!stopHide) {
-                            dd.setStyle("display", "none");
-                            dq(document).removeEvent("click", dropDownEvent);
-                        }
-                    }
-                    else {
-                        if (hasOneClick) {
-                            dd.setStyle("display", "none");
-                            dq(document).removeEvent("click", dropDownEvent);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    function reset(groupName, excludedKeys) {
-        var excluded = function (excludedKeys, key) {
-            if (excludedKeys) {
-                for (var i = 0; i < excludedKeys.length; i++) {
-                    var excludedKey = excludedKeys[i];
-                    if (excludedKeys == key) {
-                        return true;
-                        break;
-                    }
-                }
-            }
-            return false;
-        };
-
-        if (typeof excludedKeys == 'string') {
-            excludedKeys = excludedKeys.split(',');
-        }
-
-        var buttonGroup = getButton(groupName);
-        buttonGroup.each(function (el) {
-            if (!excluded(excludedKeys, el.id)) execute((dqel), false);
-        })
+    function init() {
+        customEventStack = new dq.Stack();
+        hookStack = new dq.Stack();
     }
 
     function triggerEvent(button, trigger) {
@@ -1204,109 +982,27 @@ UI.Navs = (function () {
     }
 
     function execute(button, e) {
-        var isToggle = true;
-        var dataBind = dq.Parser.uiParsing(button);
-        var buttonStyle = dataBind.style || "normal";
-        switch (buttonStyle) {
-            case 'switch':
-                isToggle = buttonSwitch.switching(button);
-                break;
-            case 'dropdown':
-                dropDown.drop(dataBind.target, dataBind.hasOneClick || null);
-                break;
-            case 'link':
-                if (dataBind.target) {
-                    window.location.href = dataBind.target;
-                }
-            case 'close':
-                if (dataBind.target) {
-                    closeDialog(dataBind.target);
-                }
-                break;
-            case 'popup':
-                openPopUp(dataBind.target);
-            default:
-                break;
+        if (hookStack.exist("onClick")) {
+            var hookFunction = hookStack.getStack("onClick");
+            var isTrigger = hookFunction(button, e);
+            if (isTrigger) {
+                triggerEvent(button, "onClick");
+            }
         }
-
-        if (isToggle) {
+        else {
             triggerEvent(button, "onClick");
-            //call the id
         }
-    }
-
-    //style popup
-    function openPopUp(popUpId) {
-        var popUpEl = document.getElementById(popUpId) || false;
-        if (popUpEl) {
-            if (popUpEl.style.display == 'none') {
-                popUpEl.style.display = 'block';
-            } else {
-                popUpEl.style.display = 'none';
-            }
-        }
-    }
-
-    function closeDialog(targetId) {
-        var targetEl = document.getElementById(targetId) || false;
-        if (targetEl) {
-            targetEl.parentNode.removeChild(targetEl);
-        }
-    }
-
-
-    function callOn(button, eventType) {
-        var dataBind = dq.Parser.uiParsing(button);
-        switch (eventType) {
-            case "click":
-                if (dataBind.callOnClick) {
-                    if (dataBind.callOnClick instanceof Array) {
-                        for (var i = 0, l = dataBind.callOnClick.length; i < l; i++) {
-                            var target = document.getElementById(dataBind.callOnClick[i]) || false;
-                            if (target) UI.Factory.implementAjaxBind(target, { type: eventType });
-                        }
-                    } else {
-                        var target = document.getElementById(dataBind.callOnClick) || false;
-
-                        if (target) UI.Factory.implementAjaxBind(target, { type: eventType });
-                    }
-                }
-                break;
-        }
-    }
-
-    function getButton(key) {
-        var buttonGroup = dq.Parser.objectIdentifier("button");
-        if (key) {
-            return buttonGroup.filter("id", key);
-        }
-        return buttonGroup;
-    }
-
-    function getButtonGroup(name) {
-        var buttonGroup = dq.Parser.objectIdentifier("button");
-        var buttonStack = new Array();
-        buttonGroup.each(function (el) {
-            var button = dq(el);
-            var dataBind = dq.Parser.uiParsing(button) || false;
-            if (dataBind.name && dataBind.name == name) {
-                buttonStack.push(el);
-            }
-        })
-        if (buttonStack.length > 0) return dq(buttonStack);
-        return false;
     }
 
     function handleEvent(target, e) {
         execute(target, e);
-        callOn(target, e.type);
     }
 
     return {
         load: function () {
             if (!isEventLoaded) {
-                customEventStack = new dq.Stack();
                 UI.Components.start();
+                init();
                 isEventLoaded = true;
             }
         },
@@ -1315,6 +1011,7 @@ UI.Navs = (function () {
         },
         handleEvent: function (target, e) {
             if (e.type != "click") return false;
+            
             var dataBind = dq.Parser.uiParsing(target);
             if (dataBind) {
                 if (dataBind.component && dataBind.component == "button") {
@@ -1328,9 +1025,9 @@ UI.Navs = (function () {
                             }
 
                         });
-                    }else {
-                        handleEvent(target, e);    
-                    } 
+                    } else {
+                        handleEvent(target, e);
+                    }
                 }
             }
             return true;
@@ -1340,58 +1037,14 @@ UI.Navs = (function () {
         },
         removeAction: function (key) {
             customEventStack.removeStack(key);
+        },
+        hook: function (key, eventFn) {
+            hookStack.addStack(key, eventFn);
         }
     }
 })();
 
-UI.FormField = (function () {
-    var customEventStack = null;
 
-    function handleEvent(target, e) {
-        target = dq(target);
-        var dataBind = dq.Parser.uiParsing(target);
-        if (dataBind.component === "formfield") {
-            executeEvent(target);
-        }
-    }
-    function triggerEvent(target) {
-        
-        //trigger event
-        var args = {
-            source: target,
-            element: button.items(0),
-            cancel: false,
-            bind: target.extractDataBind("data-ui-bind")
-        }
-
-        switch (trigger) {
-            case "onClick":
-                if (args.bind.onClick) {
-                    var clickEvent = customEventStack.getStack(args.bind.onClick);
-                    clickEvent.call(this, args);
-                }
-                break;
-            case "onChange":
-                if (args.bind.onChange) {
-                    var onChange = customEventStack.getStack(args.bind.onChange);
-                    if (onChange) onChange.call(this, args);
-                }
-                break;
-        }
-    }
-
-    return {
-        load: function () {
-            dq.Document.addAction('click,blur,change', handleEvent, 'formfield');
-        },
-        bindAction: function (name, eventFn) {
-            customEventStack.addStack(name, eventFn);
-        },
-        removeAction: function (name) {
-            customEventStack.removeStack(name);
-        }
-    }
-})();
 
 /***********************************************************************
 	@desc: Validator
@@ -1542,7 +1195,7 @@ UI.AlertDialog = (function () {
         blackDiv.style.position = 'fixed';
         blackDiv.style.top = '0px';
         blackDiv.style.left = '0px';
-        blackDiv.style.zIndex = 1000;
+        blackDiv.style.zIndex = 999999;
         blackDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
         return blackDiv;
     })();
@@ -1676,18 +1329,4 @@ UI.AlertDialog = (function () {
     }
 
 })();
-
-UI.PopUp = (function() {
-    var blackCover = (function () {
-        var blackDiv = document.createElement('div');
-        blackDiv.style.width = '100%';
-        blackDiv.style.height = '100%';
-        blackDiv.style.position = 'fixed';
-        blackDiv.style.top = '0px';
-        blackDiv.style.left = '0px';
-        blackDiv.style.zIndex = 1000;
-        blackDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
-        return blackDiv;
-    })();
-})
 
